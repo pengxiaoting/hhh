@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3x3 Speed Timer</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
+  background: #0d1117;
+  color: #c9d1d9;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  border-bottom: 1px solid #21262d;
+  background: #161b22;
+}
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.header-icon {
+  width: 36px; height: 36px;
+  background: linear-gradient(135deg, #f0883e, #f85149);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: bold; color: #fff; font-size: 1.1rem;
+}
+.header-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  background: linear-gradient(90deg, #f0883e, #f85149);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.header-sub {
+  font-size: 0.75rem;
+  color: #8b949e;
+  margin-left: 4px;
+}
+
+.main {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 20px;
+  padding: 20px 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.panel {
+  background: #161b22;
+  border: 1px solid #21262d;
+  border-radius: 12px;
+  padding: 20px;
+}
+.panel-title {
+  font-size: 0.85rem;
+  color: #8b949e;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.panel-title::before {
+  content: '';
+  width: 3px; height: 14px;
+  background: #f0883e;
+  border-radius: 2px;
+}
+
+/* Scramble */
+.scramble-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.scramble-badge {
+  font-size: 0.7rem;
+  color: #f0883e;
+  background: rgba(240, 136, 62, 0.1);
+  border: 1px solid rgba(240, 136, 62, 0.2);
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-weight: 600;
+}
+.scramble-box {
+  background: #0d1117;
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  padding: 16px;
+  font-size: 1.1rem;
+  line-height: 2;
+  word-break: break-all;
+  margin-bottom: 16px;
+  text-align: center;
+  font-weight: 600;
+  color: #e6edf3;
+}
+.scramble-move {
+  display: inline-block;
+  padding: 2px 8px;
+  margin: 2px;
+  background: #21262d;
+  border-radius: 4px;
+  color: #f0883e;
+  font-weight: 700;
+}
+.btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+.btn-primary {
+  background: #f0883e;
+  color: #fff;
+}
+.btn-primary:hover { background: #f6a85c; }
+.btn-secondary {
+  background: #21262d;
+  color: #c9d1d9;
+  border: 1px solid #30363d;
+}
+.btn-secondary:hover { background: #30363d; }
+.btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
+
+/* Timer */
+.timer-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 280px;
+  position: relative;
+}
+.timer-display {
+  font-size: 6rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: #e6edf3;
+  line-height: 1;
+  margin-bottom: 10px;
+  font-variant-numeric: tabular-nums;
+}
+.timer-state {
+  font-size: 0.85rem;
+  color: #6e7681;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+.timer-state.ready { color: #3fb950; }
+.timer-state.running { color: #58a6ff; }
+.timer-state.stopped { color: #f85149; }
+
+/* Stats */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.stat-box {
+  background: #0d1117;
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  padding: 12px;
+  text-align: center;
+}
+.stat-val {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #e6edf3;
+  font-variant-numeric: tabular-nums;
+}
+.stat-lbl {
+  font-size: 0.65rem;
+  color: #6e7681;
+  text-transform: uppercase;
+  margin-top: 4px;
+  letter-spacing: 0.05em;
+}
+
+/* Score List */
+.score-list {
+  max-height: 320px;
+  overflow-y: auto;
+}
+.score-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-radius: 6px;
+  margin-bottom: 4px;
+  background: #0d1117;
+  border: 1px solid transparent;
+  transition: 0.15s;
+}
+.score-item:hover { border-color: #30363d; }
+.score-item.best { border-color: rgba(63, 185, 80, 0.3); background: rgba(63, 185, 80, 0.05); }
+.score-item.dnf { opacity: 0.5; }
+.score-num {
+  font-size: 0.8rem;
+  color: #6e7681;
+  width: 28px;
+}
+.score-time {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #e6edf3;
+  font-variant-numeric: tabular-nums;
+}
+.score-time.p2 { color: #f85149; }
+.score-ao5 {
+  font-size: 0.75rem;
+  color: #8b949e;
+  font-variant-numeric: tabular-nums;
+}
+.score-actions {
+  display: flex;
+  gap: 4px;
+}
+.score-btn {
+  padding: 3px 8px;
+  font-size: 0.65rem;
+  border: 1px solid #30363d;
+  background: #21262d;
+  color: #c9d1d9;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.score-btn:hover { background: #30363d; }
+.score-btn.active {
+  background: #f0883e;
+  border-color: #f0883e;
+  color: #fff;
+}
+.empty-state {
+  text-align: center;
+  padding: 30px;
+  color: #6e7681;
+  font-size: 0.85rem;
+}
+
+/* Footer */
+.footer {
+  text-align: center;
+  padding: 20px;
+  font-size: 0.75rem;
+  color: #484f58;
+  border-top: 1px solid #21262d;
+  margin-top: 10px;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #30363d; border-radius: 3px; }
+
+/* Welcome Modal */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.75);
+  backdrop-filter: blur(4px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  padding: 20px;
+}
+.modal-overlay.active { display: flex; }
+.welcome-modal {
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 16px;
+  max-width: 460px;
+  width: 100%;
+  overflow: hidden;
+  animation: modalIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes modalIn {
+  0% { opacity: 0; transform: scale(0.85) translateY(20px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+.welcome-header {
+  background: linear-gradient(135deg, #f0883e, #f85149);
+  padding: 28px 24px;
+  text-align: center;
+  color: #fff;
+}
+.welcome-emoji {
+  font-size: 3rem;
+  margin-bottom: 8px;
+}
+.welcome-title {
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+.welcome-sub {
+  font-size: 0.85rem;
+  opacity: 0.9;
+  margin-top: 4px;
+}
+.welcome-body {
+  padding: 24px;
+}
+.encourage-box {
+  background: rgba(240, 136, 62, 0.08);
+  border: 1px dashed rgba(240, 136, 62, 0.25);
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-bottom: 18px;
+  text-align: center;
+}
+.encourage-text {
+  color: #e6edf3;
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+.encourage-author {
+  color: #8b949e;
+  font-size: 0.75rem;
+  margin-top: 6px;
+}
+.welcome-tips {
+  margin-bottom: 18px;
+}
+.welcome-tips-title {
+  font-size: 0.8rem;
+  color: #8b949e;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 10px;
+}
+.tip-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 0;
+  font-size: 0.85rem;
+  color: #c9d1d9;
+  border-bottom: 1px solid #21262d;
+}
+.tip-item:last-child { border-bottom: none; }
+.tip-icon {
+  font-size: 1rem;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.welcome-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 4px;
+}
+.chk-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: #8b949e;
+  cursor: pointer;
+}
+.chk-label input {
+  accent-color: #f0883e;
+  cursor: pointer;
+}
+.welcome-btn {
+  background: #f0883e;
+  color: #fff;
+  border: none;
+  padding: 10px 24px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: 0.2s;
+}
+.welcome-btn:hover { background: #f6a85c; }
+
+/* Encourage toast under scramble */
+.encourage-toast {
+  background: rgba(63, 185, 80, 0.08);
+  border: 1px dashed rgba(63, 185, 80, 0.2);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-top: 12px;
+  font-size: 0.85rem;
+  color: #c9d1d9;
+  text-align: center;
+  display: none;
+}
+.encourage-toast.show { display: block; animation: toastIn 0.4s ease; }
+@keyframes toastIn {
+  0% { opacity: 0; transform: translateY(-6px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  .main { grid-template-columns: 1fr; }
+  .timer-display { font-size: 4rem; }
+}
+</style>
+</head>
+<body>
+
+<!-- Welcome Modal -->
+<div class="modal-overlay" id="welcomeModal">
+  <div class="welcome-modal">
+    <div class="welcome-header">
+      <div class="welcome-emoji">🧩</div>
+      <div class="welcome-title">欢迎来到你的魔方练习室！</div>
+      <div class="welcome-sub">每一次转动都是进步</div>
+    </div>
+    <div class="welcome-body">
+      <div class="encourage-box">
+        <div class="encourage-text" id="encourageText">正在加载今日鼓励...</div>
+        <div class="encourage-author" id="encourageAuthor">— 你的 Timer</div>
+      </div>
+      <div class="welcome-tips">
+        <div class="welcome-tips-title">如何开始</div>
+        <div class="tip-item">
+          <span class="tip-icon">⏱</span>
+          <span><strong>长按 Space</strong> 0.3秒开始计时，运行中短按停止</span>
+        </div>
+        <div class="tip-item">
+          <span class="tip-icon">🔄</span>
+          <span>停止后短按 Space 或点击 New Scramble 进入下一局</span>
+        </div>
+        <div class="tip-item">
+          <span class="tip-icon">✏️</span>
+          <span>每条成绩可以点击 +2 / DNF 标记罚时</span>
+        </div>
+        <div class="tip-item">
+          <span class="tip-icon">💡</span>
+          <span>不要在意单次成绩，保持练习就好！</span>
+        </div>
+      </div>
+      <div class="welcome-footer">
+        <label class="chk-label">
+          <input type="checkbox" id="chkHideWelcome">
+          <span>下次不再显示</span>
+        </label>
+        <button class="welcome-btn" id="btnStartPractice">开始练习！</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="header">
+  <div class="header-left">
+    <div class="header-icon">3</div>
+    <div>
+      <div class="header-title">3x3 Speed Timer</div>
+      <div class="header-sub">Speedcubing Session Tracker</div>
+    </div>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- Left: Timer + Scramble -->
+  <div class="panel">
+    <div class="panel-title">Scramble</div>
+    <div class="scramble-info">
+      <div class="scramble-badge">3x3</div>
+    </div>
+    <div class="scramble-box" id="scrambleBox">
+      <span style="color:#6e7681">Press space to start...</span>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" id="btnGenScramble">New Scramble</button>
+      <button class="btn btn-secondary" id="btnCopy">Copy</button>
+    </div>
+    <div class="encourage-toast" id="encourageToast"></div>
+
+    <div class="timer-area" id="timerArea">
+      <div class="timer-display" id="timerDisplay">0.000</div>
+      <div class="timer-state ready" id="timerState">Ready – hold Space</div>
+    </div>
+  </div>
+
+  <!-- Right: Stats + History -->
+  <div class="panel">
+    <div class="panel-title">Stats</div>
+    <div class="stats-grid">
+      <div class="stat-box">
+        <div class="stat-val" id="statBest">-</div>
+        <div class="stat-lbl">Best</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val" id="statMean">-</div>
+        <div class="stat-lbl">Mean</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val" id="statAo5">-</div>
+        <div class="stat-lbl">Ao5</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val" id="statAo12">-</div>
+        <div class="stat-lbl">Ao12</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val" id="statCount">0</div>
+        <div class="stat-lbl">Solves</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val" id="statDnfs">0</div>
+        <div class="stat-lbl">DNFs</div>
+      </div>
+    </div>
+
+    <div class="panel-title">Session</div>
+    <div class="score-list" id="scoreList">
+      <div class="empty-state">No solves yet</div>
+    </div>
+
+    <div class="btn-row" style="margin-top: 14px;">
+      <button class="btn btn-secondary" id="btnClear" style="flex:1;">Clear</button>
+      <button class="btn btn-secondary" id="btnExport" style="flex:1;">Export</button>
+    </div>
+  </div>
+
+</div>
+
+<div class="footer">
+  3x3 Speed Timer &middot; Hold Space to start, tap to stop &middot; Times in seconds
+</div>
+
+<script>
+/* ==================== TNoodle-Style Scramble ==================== */
+const FACES = ['U','D','F','B','L','R'];
+const MODIFIERS = ['', "'", '2'];
+const AXES = { U:'UD', D:'UD', F:'FB', B:'FB', L:'LR', R:'LR' };
+
+function generateScramble(length = 20) {
+  const scramble = [];
+  let lastFace = '';
+  for (let i = 0; i < length; i++) {
+    let face;
+    do { face = FACES[Math.floor(Math.random() * FACES.length)]; }
+    while (face === lastFace || AXES[face] === AXES[lastFace]);
+    const mod = MODIFIERS[Math.floor(Math.random() * MODIFIERS.length)];
+    scramble.push(face + mod);
+    lastFace = face;
+  }
+  return scramble;
+}
+
+/* ==================== State ==================== */
+let currentScramble = [];
+let timerRunning = false;
+let startTime = 0;
+let elapsed = 0;
+let timerInterval = null;
+let spacePressed = false;
+let spacePressStart = 0;
+let spaceTriggered = false;
+const LONG_PRESS_MS = 300;
+
+let session = JSON.parse(localStorage.getItem('speedSession') || '[]');
+
+/* ==================== DOM ==================== */
+const els = {
+  scrambleBox: document.getElementById('scrambleBox'),
+  timerDisplay: document.getElementById('timerDisplay'),
+  timerState: document.getElementById('timerState'),
+  scoreList: document.getElementById('scoreList'),
+  statBest: document.getElementById('statBest'),
+  statMean: document.getElementById('statMean'),
+  statAo5: document.getElementById('statAo5'),
+  statAo12: document.getElementById('statAo12'),
+  statCount: document.getElementById('statCount'),
+  statDnfs: document.getElementById('statDnfs'),
+  btnGen: document.getElementById('btnGenScramble'),
+  btnCopy: document.getElementById('btnCopy'),
+  btnClear: document.getElementById('btnClear'),
+  btnExport: document.getElementById('btnExport')
+};
+
+/* ==================== Timer ==================== */
+function formatTime(ms) {
+  const s = ms / 1000;
+  if (s < 60) return s.toFixed(3);
+  const m = Math.floor(s / 60);
+  const rem = (s % 60).toFixed(3);
+  return m + ':' + rem.padStart(6, '0');
+}
+
+function updateDisplay() {
+  const now = performance.now();
+  els.timerDisplay.textContent = formatTime(now - startTime);
+}
+
+function startTimer() {
+  if (timerRunning) return;
+  timerRunning = true;
+  startTime = performance.now();
+  els.timerState.textContent = 'Running – tap Space to stop';
+  els.timerState.className = 'timer-state running';
+  els.scrambleBox.style.opacity = '0.3';
+  timerInterval = setInterval(updateDisplay, 23);
+}
+
+function stopTimer() {
+  if (!timerRunning) return;
+  timerRunning = false;
+  clearInterval(timerInterval);
+  elapsed = performance.now() - startTime;
+  els.timerDisplay.textContent = formatTime(elapsed);
+  els.timerState.textContent = 'Stopped – hold Space for next';
+  els.timerState.className = 'timer-state stopped';
+  els.scrambleBox.style.opacity = '1';
+  addSolve(elapsed);
+}
+
+function resetForNext() {
+  clearInterval(timerInterval);
+  timerRunning = false;
+  elapsed = 0;
+  els.timerDisplay.textContent = '0.000';
+  els.timerState.textContent = 'Ready – hold Space';
+  els.timerState.className = 'timer-state ready';
+  newScramble();
+}
+
+/* ==================== Session Logic ==================== */
+function addSolve(timeMs) {
+  const solve = {
+    id: Date.now(),
+    time: timeMs,
+    scramble: [...currentScramble],
+    penalty: '', // '', '+2', 'DNF'
+    date: new Date().toLocaleString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+  };
+  session.push(solve);
+  saveSession();
+  renderAll();
+}
+
+function addPenalty(id, penalty) {
+  const s = session.find(x => x.id === id);
+  if (!s) return;
+  s.penalty = s.penalty === penalty ? '' : penalty;
+  saveSession();
+  renderAll();
+}
+
+function deleteSolve(id) {
+  session = session.filter(x => x.id !== id);
+  saveSession();
+  renderAll();
+}
+
+function saveSession() {
+  localStorage.setItem('speedSession', JSON.stringify(session));
+}
+
+/* ==================== Stats ==================== */
+function getEffectiveTime(s) {
+  if (s.penalty === 'DNF') return Infinity;
+  if (s.penalty === '+2') return s.time + 2000;
+  return s.time;
+}
+
+function formatStat(ms) {
+  if (ms === Infinity || ms === undefined || session.length === 0) return '-';
+  return formatTime(ms);
+}
+
+function calcAo(n) {
+  if (session.length < n) return undefined;
+  const recent = session.slice(-n);
+  const times = recent.map(getEffectiveTime);
+  if (times.includes(Infinity)) {
+    // if more than one DNF, ao is DNF
+    const dnfCount = times.filter(t => t === Infinity).length;
+    if (dnfCount > 1) return Infinity;
+    // one DNF: drop it + best, average rest
+    const valid = times.filter(t => t !== Infinity);
+    if (valid.length < n - 2) return Infinity;
+    valid.sort((a, b) => a - b);
+    const trimmed = valid.slice(1, valid.length - 1);
+    return trimmed.reduce((a, b) => a + b, 0) / trimmed.length;
+  }
+  times.sort((a, b) => a - b);
+  const trimmed = times.slice(1, times.length - 1);
+  return trimmed.reduce((a, b) => a + b, 0) / trimmed.length;
+}
+
+function calcMean() {
+  const valid = session.filter(s => s.penalty !== 'DNF');
+  if (valid.length === 0) return undefined;
+  const sum = valid.reduce((a, s) => a + getEffectiveTime(s), 0);
+  return sum / valid.length;
+}
+
+function calcBest() {
+  const valid = session.filter(s => s.penalty !== 'DNF');
+  if (valid.length === 0) return undefined;
+  return Math.min(...valid.map(getEffectiveTime));
+}
+
+function updateStats() {
+  const best = calcBest();
+  const mean = calcMean();
+  const ao5 = calcAo(5);
+  const ao12 = calcAo(12);
+  const dnfCount = session.filter(s => s.penalty === 'DNF').length;
+
+  els.statBest.textContent = formatStat(best);
+  els.statMean.textContent = formatStat(mean);
+  els.statAo5.textContent = formatStat(ao5);
+  els.statAo12.textContent = formatStat(ao12);
+  els.statCount.textContent = session.length;
+  els.statDnfs.textContent = dnfCount;
+}
+
+/* ==================== Render ==================== */
+function renderAll() {
+  updateStats();
+  if (session.length === 0) {
+    els.scoreList.innerHTML = '<div class="empty-state">No solves yet</div>';
+    return;
+  }
+  const bestTime = calcBest();
+  els.scoreList.innerHTML = '';
+  [...session].reverse().forEach((s, idx) => {
+    const num = session.length - idx;
+    const eff = getEffectiveTime(s);
+    const isBest = eff === bestTime;
+    const isDnf = s.penalty === 'DNF';
+    const hasP2 = s.penalty === '+2';
+    const timeStr = isDnf ? 'DNF' : formatTime(eff);
+
+    // ao5 for this solve
+    let ao5Str = '';
+    if (num >= 5) {
+      const ao5 = calcAoFromIndex(num - 1, 5);
+      ao5Str = ao5 !== undefined ? 'ao5: ' + formatTime(ao5) : '';
+    }
+
+    const item = document.createElement('div');
+    item.className = 'score-item' + (isBest ? ' best' : '') + (isDnf ? ' dnf' : '');
+    item.innerHTML = `
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span class="score-num">#${num}</span>
+        <span class="score-time ${hasP2 ? 'p2' : ''}">${timeStr}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        ${ao5Str ? `<span class="score-ao5">${ao5Str}</span>` : ''}
+        <div class="score-actions">
+          <button class="score-btn ${s.penalty === '+2' ? 'active' : ''}" onclick="window._ap(${s.id},'+2')">+2</button>
+          <button class="score-btn ${s.penalty === 'DNF' ? 'active' : ''}" onclick="window._ap(${s.id},'DNF')">DNF</button>
+          <button class="score-btn" onclick="window._ds(${s.id})">Del</button>
+        </div>
+      </div>
+    `;
+    els.scoreList.appendChild(item);
+  });
+}
+
+function calcAoFromIndex(endIdx, n) {
+  // endIdx is index in session array (0-based)
+  if (endIdx + 1 < n) return undefined;
+  const startIdx = endIdx - n + 1;
+  const subset = session.slice(startIdx, endIdx + 1);
+  const times = subset.map(getEffectiveTime);
+
+  if (times.includes(Infinity)) {
+    const dnfCount = times.filter(t => t === Infinity).length;
+    if (dnfCount > 1) return Infinity;
+    const valid = times.filter(t => t !== Infinity);
+    if (valid.length < n - 2) return Infinity;
+    valid.sort((a, b) => a - b);
+    const trimmed = valid.slice(1, valid.length - 1);
+    return trimmed.reduce((a, b) => a + b, 0) / trimmed.length;
+  }
+  times.sort((a, b) => a - b);
+  const trimmed = times.slice(1, times.length - 1);
+  return trimmed.reduce((a, b) => a + b, 0) / trimmed.length;
+}
+
+/* ==================== Scramble ==================== */
+function newScramble() {
+  currentScramble = generateScramble(20);
+  els.scrambleBox.innerHTML = currentScramble.map(m =>
+    `<span class="scramble-move">${m}</span>`
+  ).join('');
+}
+
+/* ==================== Keyboard ==================== */
+document.addEventListener('keydown', (e) => {
+  if (e.code === 'Space') {
+    e.preventDefault();
+    if (!spacePressed) {
+      spacePressed = true;
+      spacePressStart = performance.now();
+      spaceTriggered = false;
+      if (!timerRunning) {
+        els.timerState.textContent = 'Release to start...';
+      }
+    }
+  }
+});
+
+document.addEventListener('keyup', (e) => {
+  if (e.code === 'Space') {
+    const dur = performance.now() - spacePressStart;
+    spacePressed = false;
+
+    if (spaceTriggered) {
+      spaceTriggered = false;
+      return;
+    }
+
+    if (timerRunning && dur < LONG_PRESS_MS) {
+      stopTimer();
+    } else if (!timerRunning && dur < LONG_PRESS_MS) {
+      resetForNext();
+    }
+  }
+});
+
+setInterval(() => {
+  if (spacePressed && !timerRunning && !spaceTriggered) {
+    if (performance.now() - spacePressStart >= LONG_PRESS_MS) {
+      spaceTriggered = true;
+      startTimer();
+    }
+  }
+}, 40);
+
+/* ==================== Buttons ==================== */
+els.btnGen.addEventListener('click', newScramble);
+els.btnCopy.addEventListener('click', () => {
+  if (!currentScramble.length) return;
+  navigator.clipboard.writeText(currentScramble.join(' ')).then(() => {
+    els.btnCopy.textContent = 'Copied!';
+    setTimeout(() => els.btnCopy.textContent = 'Copy', 1200);
+  });
+});
+els.btnClear.addEventListener('click', () => {
+  if (!confirm('Clear entire session?')) return;
+  session = [];
+  saveSession();
+  renderAll();
+});
+els.btnExport.addEventListener('click', () => {
+  if (!session.length) { alert('No data'); return; }
+  let csv = 'Num,Time,Penalty,Scramble,Date\n';
+  session.forEach((s, i) => {
+    const t = s.penalty === 'DNF' ? 'DNF' : formatTime(getEffectiveTime(s));
+    csv += `${i+1},"${t}","${s.penalty}","${s.scramble.join(' ')}","${s.date}"\n`;
+  });
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = '3x3-session.csv';
+  a.click();
+});
+
+/* ==================== Expose for inline onclick ==================== */
+window._ap = (id, p) => addPenalty(id, p);
+window._ds = (id) => deleteSolve(id);
+
+/* ==================== Encourage System ==================== */
+const ENCOURAGES = [
+  { text: "速度不是一天练出来的，坚持才是最快的路。", author: "— 你的 Timer" },
+  { text: "每一个 sub-60 都曾是从 sub-300 开始的。", author: "— 你的 Timer" },
+  { text: "不要和别人比，今天的你比昨天快就够了。", author: "— 你的 Timer" },
+  { text: "慢慢来，优秀的解法往往来自冷静的思考。", author: "— 你的 Timer" },
+  { text: "失误不可怕，放弃练习才可惜。", author: "— 你的 Timer" },
+  { text: "你已经很棒了，继续享受魔方吧！", author: "— 你的 Timer" },
+  { text: "记住，练得多的人才会进步快。", author: "— 你的 Timer" },
+  { text: "每个高手都是从新手过来的，你也可以。", author: "— 你的 Timer" },
+  { text: "不必焦虑，你的努力终会有回报。", author: "— 你的 Timer" },
+  { text: "今天的练习，是明天破 PB 的基石。", author: "— 你的 Timer" },
+  { text: "相信自己，你比想象中更接近目标。", author: "— 你的 Timer" },
+  { text: "魔方是和自己较劲的游戏，享受过程最重要。", author: "— 你的 Timer" }
+];
+
+const TIPS = [
+  "💡 试试在观察阶段多找几对 F2L，能省下不少时间",
+  "💡 十字做好后，观察一下第一组 F2L 在哪",
+  "💡 慢拧比快拧更能提升熟练度",
+  "💡 今天练习 PLL 的预判吧",
+  "💡 保持手指放松，紧张会影响转速",
+  "💡 停下来看看，解法还有没有优化的空间",
+  "💡 二进制观察法可以帮助你更快找到十字"
+];
+
+function pickDaily(arr) {
+  const now = new Date();
+  const idx = (now.getFullYear() * 365 + now.getMonth() * 31 + now.getDate()) % arr.length;
+  return arr[idx];
+}
+
+function showWelcomeModal() {
+  const hide = localStorage.getItem('hideWelcome');
+  if (hide === 'true') return;
+
+  const quote = pickDaily(ENCOURAGES);
+  document.getElementById('encourageText').textContent = quote.text;
+  document.getElementById('encourageAuthor').textContent = quote.author;
+  document.getElementById('welcomeModal').classList.add('active');
+}
+
+function closeWelcomeModal() {
+  const hide = document.getElementById('chkHideWelcome').checked;
+  if (hide) localStorage.setItem('hideWelcome', 'true');
+  document.getElementById('welcomeModal').classList.remove('active');
+}
+
+document.getElementById('btnStartPractice').addEventListener('click', closeWelcomeModal);
+
+function showEncourageToast() {
+  const toast = document.getElementById('encourageToast');
+  const tip = TIPS[Math.floor(Math.random() * TIPS.length)];
+  toast.textContent = tip;
+  toast.classList.add('show');
+}
+
+/* ==================== Init ==================== */
+showWelcomeModal();
+newScramble();
+renderAll();
+setTimeout(showEncourageToast, 800);
+</script>
+</body>
+</html>
