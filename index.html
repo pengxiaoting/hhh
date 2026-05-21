@@ -495,9 +495,9 @@ body {
     </div>
     <div class="encourage-toast" id="encourageToast"></div>
 
-    <div class="timer-area" id="timerArea">
+    <div class="timer-area" id="timerArea" style="cursor:pointer;user-select:none;">
       <div class="timer-display" id="timerDisplay">0.000</div>
-      <div class="timer-state ready" id="timerState">Ready – hold Space</div>
+      <div class="timer-state ready" id="timerState">Ready – hold Space or tap here</div>
     </div>
   </div>
 
@@ -809,6 +809,34 @@ function newScramble() {
     `<span class="scramble-move">${m}</span>`
   ).join('');
 }
+
+/* ==================== Tap / Click Timer ==================== */
+const timerArea = document.getElementById('timerArea');
+
+timerArea.addEventListener('click', () => {
+  if (!timerRunning && elapsed === 0) {
+    // Ready -> Start
+    startTimer();
+  } else if (timerRunning) {
+    // Running -> Stop
+    stopTimer();
+  } else if (!timerRunning && elapsed > 0) {
+    // Stopped -> Next
+    resetForNext();
+  }
+});
+
+// Also support touch for mobile
+timerArea.addEventListener('touchstart', (e) => {
+  e.preventDefault(); // prevent double-fire with click
+  if (!timerRunning && elapsed === 0) {
+    startTimer();
+  } else if (timerRunning) {
+    stopTimer();
+  } else if (!timerRunning && elapsed > 0) {
+    resetForNext();
+  }
+}, { passive: false });
 
 /* ==================== Keyboard ==================== */
 document.addEventListener('keydown', (e) => {
